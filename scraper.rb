@@ -1,5 +1,6 @@
 #!/bin/env ruby
 # encoding: utf-8
+# frozen_string_literal: true
 
 require 'scraperwiki'
 require 'nokogiri'
@@ -10,7 +11,7 @@ OpenURI::Cache.cache_path = '.cache'
 
 class String
   def tidy
-    self.gsub(/[[:space:]]+/, ' ').strip
+    gsub(/[[:space:]]+/, ' ').strip
   end
 end
 
@@ -26,14 +27,14 @@ def scrape_list(url)
     constituency = tds.shift if tds.count == 4
     next if tds[0].css('b').empty?
 
-    data = { 
-      name: tds[0].text,
+    data = {
+      name:     tds[0].text,
       wikiname: tds[0].xpath('.//a[not(@class="new")]/@title').text,
-      party: tds[1].text.tidy,
-      area: constituency.text.tidy.sub(/^\d+\.?\s+/, ''),
-      term: 2012,
+      party:    tds[1].text.tidy,
+      area:     constituency.text.tidy.sub(/^\d+\.?\s+/, ''),
+      term:     2012,
     }
-    ScraperWiki.save_sqlite([:name, :term], data)
+    ScraperWiki.save_sqlite(%i(name term), data)
   end
 end
 
