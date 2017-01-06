@@ -32,4 +32,5 @@ def scrape_list(url)
   end
 end
 
+ScraperWiki.sqliteexecute('DELETE FROM data') rescue nil
 scrape_list('https://en.wikipedia.org/wiki/Turks_and_Caicos_Islands_general_election,_2012')
