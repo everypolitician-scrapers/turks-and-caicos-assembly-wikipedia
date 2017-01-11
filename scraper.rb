@@ -16,10 +16,9 @@ end
 def scrape_list(url)
   noko = noko_for(url)
   constituency = ''
-  noko.xpath('//h3[span[@id="By_constituency"]]/following-sibling::table[1]/tr[td]').each do |tr|
+  noko.xpath('//h3[span[@id="By_constituency"]]/following-sibling::table[1]/tr[td[.//b]]').each do |tr|
     tds = tr.css('td')
     constituency = tds.shift if tds.count == 4
-    next if tds[0].css('b').empty?
 
     data = {
       name:     tds[0].text,
