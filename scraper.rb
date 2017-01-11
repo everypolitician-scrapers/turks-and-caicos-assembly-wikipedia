@@ -16,27 +16,43 @@ class ResultsPage < Scraped::HTML
   decorator UnspanAllTables
 
   field :winners do
-    noko.xpath('//h3[span[@id="By_constituency"]]/following-sibling::table[1]/tr[td[.//b]]').map do |tr|
-      fragment tr => WinnerRow
-    end
+    winner_rows.map { |tr| fragment tr => row_class }
+  end
+
+  private
+
+  def winner_rows
+    noko.xpath('//h3[span[@id="By_constituency"]]/following-sibling::table[1]/tr[td[.//b]]')
+  end
+end
+
+class ResultsPage2012 < ResultsPage
+  def row_class
+    WinnerRow2012
+  end
+end
+
+class ResultsPage2016 < ResultsPage
+  def row_class
+    WinnerRow2016
   end
 end
 
 class WinnerRow < Scraped::HTML
   field :name do
-    tds[1].text
+    tds[name_column].text
   end
 
   field :wikiname do
-    tds[1].xpath('.//a[not(@class="new")]/@title').text
+    tds[name_column].xpath('.//a[not(@class="new")]/@title').text
   end
 
   field :party do
-    tds[2].text.tidy
+    tds[party_column].text.tidy
   end
 
   field :area do
-    tds[0].at_xpath('./text()[1]').text.tidy.sub(/^\d+\.?\s+/, '')
+    tds[area_column].at_xpath('./text()[1]').text.tidy.sub(/^\d+\.?\s+/, '')
   end
 
   private
@@ -44,12 +60,40 @@ class WinnerRow < Scraped::HTML
   def tds
     noko.css('td')
   end
+
+  def area_column
+    colmap.find_index('area')
+  end
+
+  def name_column
+    colmap.find_index('name')
+  end
+
+  def party_column
+    colmap.find_index('party')
+  end
 end
 
-url = 'https://en.wikipedia.org/wiki/Turks_and_Caicos_Islands_general_election,_2012'
-page = ResultsPage.new(response: Scraped::Request.new(url: url).response)
-data = page.winners.map { |res| res.to_h.merge(term: 2012) }
-# puts data
+class WinnerRow2016 < WinnerRow
+  def colmap
+    %w(areaid area name partycol party votes)
+  end
+end
+
+class WinnerRow2012 < WinnerRow
+  def colmap
+    %w(area name party votes)
+  end
+end
+
+def scrape(term, url)
+  pageclass = Object.const_get("ResultsPage#{term}")
+  page = pageclass.new(response: Scraped::Request.new(url: url).response)
+  data = page.winners.map { |res| res.to_h.merge(term: term) }
+  # puts data
+  ScraperWiki.save_sqlite(%i(name term), data)
+end
 
 ScraperWiki.sqliteexecute('DELETE FROM data') rescue nil
-ScraperWiki.save_sqlite(%i(name term), data)
+scrape(2012, 'https://en.wikipedia.org/wiki/Turks_and_Caicos_Islands_general_election,_2012')
+scrape(2016, 'https://en.wikipedia.org/wiki/Turks_and_Caicos_Islands_general_election,_2016')
