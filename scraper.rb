@@ -3,33 +3,53 @@
 # frozen_string_literal: true
 
 require 'pry'
+require 'require_all'
 require 'scraped'
 require 'scraperwiki'
+
+require_rel 'lib'
 
 require 'open-uri/cached'
 OpenURI::Cache.cache_path = '.cache'
 
-def noko_for(url)
-  Nokogiri::HTML(open(url).read)
-end
+class ResultsPage < Scraped::HTML
+  decorator UnspanAllTables
 
-def scrape_list(url)
-  noko = noko_for(url)
-  constituency = ''
-  noko.xpath('//h3[span[@id="By_constituency"]]/following-sibling::table[1]/tr[td[.//b]]').each do |tr|
-    tds = tr.css('td')
-    constituency = tds.shift if tds.count == 4
-
-    data = {
-      name:     tds[0].text,
-      wikiname: tds[0].xpath('.//a[not(@class="new")]/@title').text,
-      party:    tds[1].text.tidy,
-      area:     constituency.text.tidy.sub(/^\d+\.?\s+/, ''),
-      term:     2012,
-    }
-    ScraperWiki.save_sqlite(%i(name term), data)
+  field :winners do
+    noko.xpath('//h3[span[@id="By_constituency"]]/following-sibling::table[1]/tr[td[.//b]]').map do |tr|
+      fragment tr => WinnerRow
+    end
   end
 end
 
+class WinnerRow < Scraped::HTML
+  field :name do
+    tds[1].text
+  end
+
+  field :wikiname do
+    tds[1].xpath('.//a[not(@class="new")]/@title').text
+  end
+
+  field :party do
+    tds[2].text.tidy
+  end
+
+  field :area do
+    tds[0].at_xpath('./text()[1]').text.tidy.sub(/^\d+\.?\s+/, '')
+  end
+
+  private
+
+  def tds
+    noko.css('td')
+  end
+end
+
+url = 'https://en.wikipedia.org/wiki/Turks_and_Caicos_Islands_general_election,_2012'
+page = ResultsPage.new(response: Scraped::Request.new(url: url).response)
+data = page.winners.map { |res| res.to_h.merge(term: 2012) }
+# puts data
+
 ScraperWiki.sqliteexecute('DELETE FROM data') rescue nil
-scrape_list('https://en.wikipedia.org/wiki/Turks_and_Caicos_Islands_general_election,_2012')
+ScraperWiki.save_sqlite(%i(name term), data)
