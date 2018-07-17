@@ -90,7 +90,7 @@ def scrape(term, url)
   pageclass = Object.const_get("ResultsPage#{term}")
   page = pageclass.new(response: Scraped::Request.new(url: url).response)
   data = page.winners.map { |res| res.to_h.merge(term: term) }
-  # puts data
+  data.each { |mem| puts mem.reject { |_, v| v.to_s.empty? }.sort_by { |k, _| k }.to_h } if ENV['MORPH_DEBUG']
   ScraperWiki.save_sqlite(%i(name term), data)
 end
 
