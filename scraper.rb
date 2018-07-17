@@ -40,7 +40,7 @@ end
 
 class WinnerRow < Scraped::HTML
   field :name do
-    tds[name_column].text
+    tds[name_column].text.tidy
   end
 
   field :wikiname do
