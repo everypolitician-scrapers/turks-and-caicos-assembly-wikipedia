@@ -6,6 +6,7 @@ require 'pry'
 require 'require_all'
 require 'scraped'
 require 'scraperwiki'
+require 'wikidata_ids_decorator'
 
 require_rel 'lib'
 
@@ -13,6 +14,7 @@ require 'open-uri/cached'
 OpenURI::Cache.cache_path = '.cache'
 
 class ResultsPage < Scraped::HTML
+  decorator WikidataIdsDecorator::Links
   decorator UnspanAllTables
 
   field :winners do
@@ -45,6 +47,10 @@ class WinnerRow < Scraped::HTML
 
   field :wikiname do
     tds[name_column].xpath('.//a[not(@class="new")]/@title').text
+  end
+
+  field :id do
+    tds[name_column].css('a/@wikidata').map(&:text).first
   end
 
   field :party do
